@@ -1,0 +1,24 @@
+[package]
+description = "Knife框架"
+edition = "2021"
+license = "Apache-2.0"
+name = "knife-framework"
+repository = "https://github.com/ocaso1987/knife-framework/"
+version = "0.1.0"
+
+[dependencies]
+clap = "3.2.16"
+knife-macro = { git = "https://github.com/ocaso1987/knife-macro.git", branch = "v0.1.0-dev" }
+knife-util = { git = "https://github.com/ocaso1987/knife-util.git", branch = "v0.1.0-dev" }
+opentelemetry = "0.17.0"
+opentelemetry-jaeger = "0.16.0"
+rbatis = "3.1.16"
+tracing = "0.1.36"
+tracing-opentelemetry = "0.17.4"
+tracing-subscriber = "0.3.15"
+typetag = "0.2.2"
+lazy_static = "1.4.0"
+serde = "1.0.142"
+
+[features]
+default = []
