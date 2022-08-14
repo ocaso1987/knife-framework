@@ -1,9 +1,14 @@
+use std::future::Future;
+
 use knife_macro::knife_component;
-use knife_util::futures::{
-    channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
-    executor::{block_on, ThreadPool},
-    task::FutureObj,
-    Future, StreamExt,
+use knife_util::{
+    tokio::{
+        self,
+        runtime::Runtime,
+        select,
+        sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    },
+    FutureObj,
 };
 use tracing::debug;
 
@@ -18,7 +23,6 @@ pub(crate) const SERVER: &'static str = "SERVER";
 
 pub enum BootstrapEvent {
     NewThread {
-        worker_number: usize,
         thread_name: &'static str,
         action: FutureObj<'static, ()>,
     },
@@ -28,12 +32,10 @@ impl std::fmt::Debug for BootstrapEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NewThread {
-                worker_number,
                 thread_name,
                 action: _,
             } => f
                 .debug_struct("NewThread")
-                .field("worker_number", worker_number)
                 .field("thread_name", thread_name)
                 .finish(),
         }
@@ -55,7 +57,7 @@ pub struct Bootstrap {
 impl Bootstrap {
     pub(crate) fn new() -> Self {
         Bootstrap {
-            channel: unbounded::<BootstrapEvent>(),
+            channel: unbounded_channel::<BootstrapEvent>(),
         }
     }
     pub(crate) fn start<F>(&mut self, start_type: &'static str, f: F) -> &Self
@@ -64,24 +66,27 @@ impl Bootstrap {
     {
         debug!("准备启动程序");
         let (_s, r) = &mut self.channel;
-        block_on(async move {
-            set_application_hook(EVENT_INIT, |_| async move {
-                f();
-                send_application_event(EVENT_CONFIG, vec![]);
-            });
-            set_application_hook(EVENT_READY, move |_| async move {
-                if start_type == SERVER {
-                    Web::start().await;
-                } else {
-                    panic!("不支持的启动类型");
-                }
-                send_application_event(EVENT_STARTED, vec![]);
-            });
-            launch_application().await;
 
+        set_application_hook(EVENT_INIT, |_| async move {
+            f();
+            send_application_event(EVENT_CONFIG, vec![]);
+        });
+        set_application_hook(EVENT_READY, move |_| async move {
+            if start_type == SERVER {
+                Web::start().await;
+            } else {
+                panic!("不支持的启动类型");
+            }
+            send_application_event(EVENT_STARTED, vec![]);
+        });
+
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async move {
+            tokio::spawn(launch_application()); //正式启动
             loop {
-                let msg = r.next().await.unwrap();
-                Bootstrap::on_receive_event(msg).await;
+                select! {
+                    Some(msg) = r.recv() =>  Bootstrap::on_receive_event(msg).await,
+                }
             }
         });
         self
@@ -91,20 +96,15 @@ impl Bootstrap {
         debug!("接受到事件BootstrapEvent {:?}", event);
         match event {
             BootstrapEvent::NewThread {
-                worker_number,
-                thread_name,
+                thread_name: _,
                 action,
             } => {
-                let rt = ThreadPool::builder()
-                    .pool_size(worker_number.clone())
-                    .create()
-                    .expect(format!("构建线程[{}]失败", thread_name).as_str());
-                let _res = rt.spawn_obj_ok(action);
+                tokio::task::spawn(async move { action.await });
             }
         }
     }
 
-    pub(crate) fn new_thread<F>(worker_number: usize, thread_name: &'static str, callback: F)
+    pub(crate) fn new_thread<F>(thread_name: &'static str, callback: F)
     where
         F: Future<Output = ()> + Send + 'static,
     {
@@ -112,8 +112,7 @@ impl Bootstrap {
         bootstrap
             .channel
             .0
-            .unbounded_send(BootstrapEvent::NewThread {
-                worker_number,
+            .send(BootstrapEvent::NewThread {
                 thread_name,
                 action: FutureObj::new(Box::new(callback)),
             })

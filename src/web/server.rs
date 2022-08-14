@@ -1,11 +1,12 @@
 use knife_macro::knife_component;
-use knife_util::hyper::{
-    server::conn::AddrStream,
-    service::{make_service_fn, service_fn},
-    Body, Request, Response, Server,
+use knife_util::{
+    hyper::{
+        server::conn::AddrStream,
+        service::{make_service_fn, service_fn},
+        Body, Request, Response, Server,
+    },
+    AppError,
 };
-use knife_util::tokio::runtime::Builder;
-use knife_util::AppError;
 use tracing::debug;
 
 use crate::{app_setting, boot::bootstrap::Bootstrap, component_global};
@@ -16,14 +17,9 @@ pub struct Web {}
 impl Web {
     pub async fn launch() {}
     pub async fn start() {
-        Bootstrap::new_thread(1, "WebServerThread", async move {
+        Bootstrap::new_thread("WebServerThread", async move {
             debug!("线程WebServerThread初始化...");
-            let rt = Builder::new_multi_thread()
-                .worker_threads(4)
-                .enable_all()
-                .build()
-                .unwrap();
-            rt.block_on(Self::start_instance());
+            Self::start_instance().await;
         });
     }
     pub async fn start_instance() {

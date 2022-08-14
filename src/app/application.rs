@@ -1,18 +1,18 @@
 use knife_macro::knife_component;
-use knife_util::futures::{
-    channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
-    join,
-    task::FutureObj,
-    Future, FutureExt, StreamExt,
+use knife_util::{
+    tokio::{
+        self, join, select,
+        sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    },
+    FutureHandler, FutureObj,
 };
 use tracing::debug;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, future::Future};
 
 use crate::{
     app::{config::Config, db::Db, logger::Logger},
     boot::bootstrap::Bootstrap,
-    util::Handler,
     web::server::Web,
 };
 
@@ -46,13 +46,13 @@ pub struct Application {
         UnboundedSender<ApplicationEvent>,
         UnboundedReceiver<ApplicationEvent>,
     ),
-    handlers: HashMap<String, Handler<'static, ApplicationEvent, ()>>,
+    handlers: HashMap<String, FutureHandler<'static, ApplicationEvent, ()>>,
 }
 
 impl Application {
     pub(crate) fn new() -> Self {
         Application {
-            channel: unbounded::<ApplicationEvent>(),
+            channel: unbounded_channel::<ApplicationEvent>(),
             handlers: HashMap::new(),
         }
     }
@@ -70,32 +70,32 @@ impl Application {
 }
 
 pub async fn launch_application() {
-    Bootstrap::new_thread(1, "ApplicationThread", async move {
-        debug!("线程ApplicationThread初始化...");
-        let app = Application::get_instance() as &mut Application;
+    debug!("线程ApplicationThread初始化...");
+    let app = Application::get_instance() as &mut Application;
+    let (_s, r) = &mut app.channel;
 
-        set_application_hook(EVENT_CONFIG, |_| async move {
-            let _ = Logger::launch()
-                .then(|_| Config::launch())
-                .then(|_| Logger::reload())
-                .then(|_| async move {
-                    send_application_event(EVENT_LAUNCH, vec![]);
-                })
-                .await;
-        });
-        set_application_hook(EVENT_LAUNCH, |_| async move {
-            let _ = join!(Db::launch(), Web::launch());
-            let _ = async move {
-                send_application_event(EVENT_READY, vec![]);
-            }
-            .await;
-        });
-        send_application_event(EVENT_INIT, vec![]);
+    set_application_hook(EVENT_CONFIG, |_| async move {
+        Logger::launch().await;
+        Config::launch().await;
+        Logger::reload().await;
+        send_application_event(EVENT_LAUNCH, vec![]);
+    });
+    set_application_hook(EVENT_LAUNCH, |_| async move {
+        let _ = join!(Db::launch(), Web::launch());
+        let _ = async move {
+            send_application_event(EVENT_READY, vec![]);
+        }
+        .await;
+    });
 
-        let (_s, r) = &mut app.channel;
+    Bootstrap::new_thread("ApplicationThread", async move {
+        tokio::spawn(async {
+            send_application_event(EVENT_INIT, vec![]);
+        });
         loop {
-            let msg = r.next().await.unwrap();
-            Application::on_receive_event(msg).await;
+            select! {
+                Some(msg) = r.recv() =>  Application::on_receive_event(msg).await,
+            }
         }
     });
 }
@@ -104,7 +104,7 @@ pub(crate) fn send_application_event(event_name: &'static str, event_params: Vec
     let app = Application::get_instance() as &mut Application;
     app.channel
         .0
-        .unbounded_send(ApplicationEvent {
+        .send(ApplicationEvent {
             name: event_name.to_string(),
             param: event_params,
         })
@@ -119,7 +119,7 @@ where
     let app = Application::get_instance() as &mut Application;
     app.handlers.insert(
         event_name.to_string(),
-        Handler::new(Box::new(|msg| {
+        FutureHandler::new(Box::new(|msg| {
             FutureObj::new(Box::new(async move { hook(msg).await }))
         })),
     );

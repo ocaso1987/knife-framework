@@ -19,12 +19,13 @@ pub(crate) mod boot {
     pub(crate) mod main;
 }
 pub mod web {
-    pub(crate) mod model;
     pub(crate) mod request;
     pub(crate) mod response;
     pub(crate) mod server;
-
-    pub use model::Pagination;
+}
+pub mod model {
+    pub(crate) mod common;
+    pub use common::*;
 }
 
 pub use knife_macro::*;

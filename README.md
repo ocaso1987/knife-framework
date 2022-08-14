@@ -9,7 +9,7 @@ Knife微服务框架
 
 ```rust
 use hyper::{Body, Request, Response};
-use knife_framework::{knife_router, knife_server, AppError};
+use knife_framework::{knife_router, knife_server, Result};
 
 #[knife_server(project = "knife", application = "knife-sample")]
 fn main() {
@@ -17,7 +17,7 @@ fn main() {
 }
 
 #[knife_router(path = "/hello", method = "get")]
-async fn handler(req: Request<Body>) -> Result<Response<Body>, AppError> {
+async fn handler(req: Request<Body>) -> Result<Response<Body>> {
     Ok(Response::new(Body::from("hello world")))
 }
 ```
@@ -31,5 +31,6 @@ async fn handler(req: Request<Body>) -> Result<Response<Body>, AppError> {
 knife-framework = { git = "https://github.com/ocaso1987/knife-framework.git", branch = "v0.1.0-dev" }
 serde = "1.0.142"
 lazy_static = "1.4.0"
+rbatis = "4.0.18"
 ```
 你可以克隆该项目，并且执行项目中示例： cargo run --example example_name.

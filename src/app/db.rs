@@ -1,5 +1,6 @@
 use knife_macro::knife_component;
 use rbatis::rbatis::Rbatis;
+use rbdc_pg::driver::PgDriver;
 use tracing::debug;
 
 use crate::app::config::app_setting;
@@ -24,7 +25,10 @@ impl Db {
         let driver_url = setting.knife.db.driver_url.to_string();
         if !driver_url.is_empty() {
             debug!("连接数据源:{}", driver_url);
-            self.rb.link(driver_url.as_str()).await.unwrap();
+            self.rb
+                .link(PgDriver {}, driver_url.as_str())
+                .await
+                .unwrap();
         }
     }
 
