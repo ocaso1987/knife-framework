@@ -27,6 +27,16 @@ pub mod model {
     pub(crate) mod common;
     pub use common::*;
 }
+pub mod ext {
+    pub(crate) mod error;
+    pub(crate) mod page;
+    pub use error::from_rbatis;
+    pub use page::*;
+}
+
+pub mod tracing {
+    pub use tracing::*;
+}
 
 pub use knife_macro::*;
 pub mod util {

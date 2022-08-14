@@ -7,19 +7,20 @@ repository = "https://github.com/ocaso1987/knife-framework/"
 version = "0.1.0"
 
 [dependencies]
-knife-macro = { git = "https://github.com/ocaso1987/knife-macro.git", branch = "v0.1.0-dev" }
-knife-util = { git = "https://github.com/ocaso1987/knife-util.git", branch = "v0.1.0-dev" }
+knife-macro = { git = "https://gitlab.fxexpert.cn/knife/knife-macro.git", branch = "v0.1.0-dev" }
+# knife-macro = { git = "https://github.com/ocaso1987/knife-macro.git", branch = "v0.1.0-dev" }
+knife-util = { git = "https://gitlab.fxexpert.cn/knife/knife-util.git", branch = "v0.1.0-dev" }
 opentelemetry = "0.17.0"
+# knife-util = { git = "https://github.com/ocaso1987/knife-util.git", branch = "v0.1.0-dev" }
 opentelemetry-jaeger = "0.16.0"
 tracing = "0.1.36"
 tracing-opentelemetry = "0.17.4"
 tracing-subscriber = "0.3.15"
-rbs = "0.1.2"
-rbatis = "4.0.18"
-rbdc = "0.1.9"
-rbdc-pg = "0.1.11"
+anyhow = "1.0.62"
 lazy_static = "1.4.0"
 serde = "1.0.143"
+rbatis = "3.1.16"
+rbatis_sql = "3.0.26"
 
 [features]
 default = []

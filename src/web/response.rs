@@ -1,15 +1,15 @@
 use knife_util::{
     hyper::{Body, Response},
-    AppError,
+    AnyError, Result,
 };
 
 pub struct HyperResponse {
     resp: Option<Response<Body>>,
-    err: Option<AppError>,
+    err: Option<AnyError>,
 }
 
-impl From<Result<Response<Body>, AppError>> for HyperResponse {
-    fn from(res: Result<Response<Body>, AppError>) -> Self {
+impl From<Result<Response<Body>>> for HyperResponse {
+    fn from(res: Result<Response<Body>>) -> Self {
         if res.is_ok() {
             HyperResponse {
                 resp: res.ok(),
@@ -24,8 +24,8 @@ impl From<Result<Response<Body>, AppError>> for HyperResponse {
     }
 }
 
-impl Into<Result<Response<Body>, AppError>> for HyperResponse {
-    fn into(self) -> Result<Response<Body>, AppError> {
+impl Into<Result<Response<Body>>> for HyperResponse {
+    fn into(self) -> Result<Response<Body>> {
         if self.resp.is_some() {
             Ok(self.resp.unwrap())
         } else {

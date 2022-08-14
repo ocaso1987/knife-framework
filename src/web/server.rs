@@ -5,7 +5,7 @@ use knife_util::{
         service::{make_service_fn, service_fn},
         Body, Request, Response, Server,
     },
-    AppError,
+    AnyError, Result,
 };
 use tracing::debug;
 
@@ -27,7 +27,7 @@ impl Web {
         if port != 0 {
             let addr = format!("127.0.0.1:{}", port).parse().unwrap();
             let new_service = make_service_fn(move |_socket: &AddrStream| async move {
-                Ok::<_, AppError>(service_fn(move |req: Request<Body>| async move {
+                Ok::<_, AnyError>(service_fn(move |req: Request<Body>| async move {
                     match_req(req).await
                 }))
             });
@@ -38,7 +38,7 @@ impl Web {
     }
 }
 
-async fn match_req(req: Request<Body>) -> Result<Response<Body>, AppError> {
+async fn match_req(req: Request<Body>) -> Result<Response<Body>> {
     let router_name = format!(
         "{}:{}",
         req.method().to_string().to_uppercase().as_str(),
