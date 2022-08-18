@@ -4,14 +4,14 @@ edition = "2021"
 license = "Apache-2.0"
 name = "knife-framework"
 repository = "https://github.com/ocaso1987/knife-framework/"
-version = "0.1.0"
+version = "0.1.1"
 
 [dependencies]
-knife-macro = { git = "https://gitlab.fxexpert.cn/knife/knife-macro.git", branch = "v0.1.0-dev" }
-# knife-macro = { git = "https://github.com/ocaso1987/knife-macro.git", branch = "v0.1.0-dev" }
-knife-util = { git = "https://gitlab.fxexpert.cn/knife/knife-util.git", branch = "v0.1.0-dev" }
+knife-macro = { git = "https://gitlab.fxexpert.cn/knife/knife-macro.git", branch = "v0.1.1-dev" }
+# knife-macro = { git = "https://github.com/ocaso1987/knife-macro.git", branch = "v0.1.1-dev" }
+knife-util = { git = "https://gitlab.fxexpert.cn/knife/knife-util.git", branch = "v0.1.1-dev" }
+# knife-util = { git = "https://github.com/ocaso1987/knife-util.git", branch = "v0.1.1-dev" }
 opentelemetry = "0.17.0"
-# knife-util = { git = "https://github.com/ocaso1987/knife-util.git", branch = "v0.1.0-dev" }
 opentelemetry-jaeger = "0.16.0"
 tracing = "0.1.36"
 tracing-opentelemetry = "0.17.4"
