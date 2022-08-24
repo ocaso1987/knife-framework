@@ -5,7 +5,6 @@ pub(crate) mod app {
     pub(crate) mod application;
     pub(crate) mod config;
     pub(crate) mod db;
-    pub(crate) mod default;
     pub(crate) mod logger;
     pub(crate) mod setting;
 }
@@ -34,8 +33,9 @@ pub mod ext {
     pub use page::*;
 }
 
-pub mod tracing {
-    pub use tracing::*;
+pub mod crates {
+    pub use knife_util::crates::*;
+    pub use tracing;
 }
 
 pub use knife_macro::*;
@@ -44,12 +44,12 @@ pub mod util {
 }
 
 pub use app::{
-    config::{add_config, app_setting},
+    config::{add_config, app_raw_setting, app_setting},
     db::rb,
 };
 pub use bean::{
     component::{Component, ComponentTrait, RouterTrait},
-    main::{component_global, get_global, register_global},
+    main::{component_global, foreach_global, get_global, register_global},
 };
 pub use boot::main::{start_server, stop_server};
 pub use web::{request::HyperRequest, response::HyperResponse};

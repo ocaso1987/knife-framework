@@ -1,4 +1,4 @@
-use knife_util::async_trait::async_trait;
+use knife_util::crates::async_trait::async_trait;
 
 use crate::web::request::HyperRequest;
 use crate::web::response::HyperResponse;

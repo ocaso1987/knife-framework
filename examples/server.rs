@@ -1,5 +1,9 @@
-use knife_framework::{add_config, knife_router, knife_server, util::Result};
-use knife_util::hyper::{Body, Request, Response};
+use knife_framework::{
+    add_config,
+    crates::hyper::{Body, Request, Response},
+    knife_router, knife_server,
+    util::Result,
+};
 
 #[knife_server(project = "knife", application = "knife-sample")]
 async fn main() {

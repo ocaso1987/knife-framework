@@ -1,5 +1,5 @@
 use knife_util::{
-    hyper::{Body, Response},
+    crates::hyper::{Body, Response},
     AnyError, Result,
 };
 

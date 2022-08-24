@@ -1,4 +1,4 @@
-use knife_util::hyper::{Body, Request};
+use knife_util::crates::hyper::{Body, Request};
 
 pub struct HyperRequest {
     req: Request<Body>,

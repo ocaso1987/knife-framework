@@ -1,13 +1,15 @@
 use knife_macro::knife_component;
+use knife_util::Result;
 use tracing_subscriber::{prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt};
 
 #[knife_component(name = "GLOBAL_LOGGER", crate_builtin_name = "crate")]
 pub struct Logger {}
 
 impl Logger {
-    pub(crate) async fn launch() {
+    pub(crate) async fn launch() -> Result<()> {
         let logger = Logger::get_instance() as &mut Logger;
         logger.load_default();
+        Ok(())
     }
 
     pub fn load_default(&mut self) {
@@ -25,5 +27,7 @@ impl Logger {
             .unwrap();
     }
 
-    pub(crate) async fn reload() {}
+    pub(crate) async fn reload() -> Result<()> {
+        Ok(())
+    }
 }

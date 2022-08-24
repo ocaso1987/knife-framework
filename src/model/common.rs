@@ -1,4 +1,4 @@
-use rbatis::PageRequest;
+use rbatis::sql::PageRequest;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]

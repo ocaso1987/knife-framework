@@ -1,5 +1,5 @@
 use knife_util::VecExt;
-use rbatis::Page;
+use rbatis::sql::Page;
 
 pub trait PageExt<T> {
     fn transform<F, R>(&self, func: F) -> Page<R>

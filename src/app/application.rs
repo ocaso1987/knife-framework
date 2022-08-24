@@ -1,10 +1,10 @@
 use knife_macro::knife_component;
 use knife_util::{
-    tokio::{
+    crates::tokio::{
         self, join, select,
         sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
     },
-    FutureHandler, FutureObj,
+    FutureHandler, FutureObj, Result,
 };
 use tracing::debug;
 
@@ -69,15 +69,15 @@ impl Application {
     }
 }
 
-pub async fn launch_application() {
+pub async fn launch_application() -> Result<()> {
     debug!("线程ApplicationThread初始化...");
     let app = Application::get_instance() as &mut Application;
     let (_s, r) = &mut app.channel;
 
     set_application_hook(EVENT_CONFIG, |_| async move {
-        Logger::launch().await;
-        Config::launch().await;
-        Logger::reload().await;
+        Logger::launch().await.unwrap();
+        Config::launch().await.unwrap();
+        Logger::reload().await.unwrap();
         send_application_event(EVENT_LAUNCH, vec![]);
     });
     set_application_hook(EVENT_LAUNCH, |_| async move {
@@ -98,6 +98,7 @@ pub async fn launch_application() {
             }
         }
     });
+    Ok(())
 }
 
 pub(crate) fn send_application_event(event_name: &'static str, event_params: Vec<String>) {

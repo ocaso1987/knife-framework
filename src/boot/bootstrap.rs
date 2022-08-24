@@ -2,7 +2,7 @@ use std::future::Future;
 
 use knife_macro::knife_component;
 use knife_util::{
-    tokio::{
+    crates::tokio::{
         self,
         runtime::Runtime,
         select,

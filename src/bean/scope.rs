@@ -68,4 +68,15 @@ impl GlobalScope {
         }
         component_map.get_mut(name.as_str()).unwrap().as_mut::<V>()
     }
+
+    pub(crate) fn foreach_component<F>(container_name: String, mut f: F)
+    where
+        F: FnMut((String, &'static mut Component)) + Send + Sync,
+    {
+        let container = Self::get_container(container_name.clone());
+        let component_map = &mut container.component_map;
+        component_map
+            .iter_mut()
+            .for_each(|(k, v)| f((k.clone(), v)))
+    }
 }

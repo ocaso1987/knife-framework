@@ -17,3 +17,10 @@ where
 pub fn component_global(container: String, name: String) -> Option<&'static mut Component> {
     GlobalScope::get_component(container, name)
 }
+
+pub fn foreach_global<F>(container: String, f: F)
+where
+    F: FnMut((String, &'static mut Component)) + Send + Sync,
+{
+    GlobalScope::foreach_component(container, f)
+}

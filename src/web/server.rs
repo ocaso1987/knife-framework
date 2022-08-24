@@ -1,21 +1,27 @@
+use std::collections::HashMap;
+
 use knife_macro::knife_component;
 use knife_util::{
-    hyper::{
+    crates::hyper::{
         server::conn::AddrStream,
         service::{make_service_fn, service_fn},
-        Body, Request, Response, Server,
+        Body, Request, Response, Server, StatusCode,
     },
-    AnyError, Result,
+    AnyError, AnyRef, Result, StringExt, ERR_WEB,
 };
 use tracing::debug;
 
-use crate::{app_setting, boot::bootstrap::Bootstrap, component_global};
+use crate::{app_setting, boot::bootstrap::Bootstrap, component_global, foreach_global, Component};
 
 #[knife_component(name = "GLOBAL_WEB", crate_builtin_name = "crate")]
-pub struct Web {}
+pub struct Web {
+    router_map: HashMap<String, AnyRef>,
+}
 
 impl Web {
-    pub async fn launch() {}
+    pub async fn launch() -> Result<()> {
+        Ok(())
+    }
     pub async fn start() {
         Bootstrap::new_thread("WebServerThread", async move {
             debug!("线程WebServerThread初始化...");
@@ -39,18 +45,57 @@ impl Web {
 }
 
 async fn match_req(req: Request<Body>) -> Result<Response<Body>> {
-    let router_name = format!(
+    let router_name = &format!(
         "{}:{}",
-        req.method().to_string().to_uppercase().as_str(),
-        req.uri().path()
+        req.method().to_string().to_uppercase(),
+        req.uri().path().to_string()
     );
-    let router = component_global("router".to_string(), router_name.to_string());
+    let router = get_match_router(router_name);
     if let Some(c) = router {
         let req = req.into();
         let res = c.to_router().router_handle(req).await;
-        let resp = res.into();
-        resp
+        let resp: Result<Response<Body>> = res.into();
+        if resp.is_ok() {
+            resp
+        } else {
+            Ok(Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(Body::from(resp.err().unwrap().to_json_string()))
+                .unwrap())
+        }
     } else {
-        panic!("没找到路由{}", router_name.clone());
+        Ok(Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(Body::from(
+                ERR_WEB
+                    .msg_detail(format!("没找到路由{}", router_name.clone()))
+                    .to_json_string(),
+            ))
+            .unwrap())
+    }
+}
+
+fn get_match_router(router_name: &String) -> Option<&'static mut Component> {
+    let router = component_global("router".to_string(), router_name.clone());
+    if router.is_some() {
+        return router;
+    }
+    {
+        let web = Web::get_instance() as &'static mut Web;
+        let router_map = &mut web.router_map as &'static mut HashMap<String, AnyRef>;
+        if router_map.get(&router_name.clone()).is_none() {
+            foreach_global("router".to_string(), move |c| {
+                if router_name.clone().glob_match(c.0.to_string()) {
+                    router_map.insert(router_name.clone(), AnyRef::new(c.1));
+                }
+            });
+        }
+    }
+    {
+        let web = Web::get_instance() as &'static mut Web;
+        let router_map = &mut web.router_map as &'static mut HashMap<String, AnyRef>;
+        router_map
+            .get(&router_name.clone())
+            .map(|x| x.as_mut::<Component>())
     }
 }
