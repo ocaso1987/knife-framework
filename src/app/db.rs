@@ -1,7 +1,8 @@
 use knife_macro::knife_component;
-use knife_util::Result;
-use rbatis::rbatis::Rbatis;
-use rbdc_pg::driver::PgDriver;
+use knife_util::{
+    crates::sqlx::{Database, Pool, Postgres},
+    AnyValue, Result,
+};
 use tracing::debug;
 
 use super::config::app_setting;
@@ -13,23 +14,23 @@ use super::config::app_setting;
     crate_builtin_name = "crate"
 )]
 pub struct Db {
-    pub(crate) rb: Rbatis,
+    pub(crate) db: Option<AnyValue>,
 }
 
 impl Db {
     pub(crate) fn new() -> Self {
-        Db { rb: Rbatis::new() }
+        Db { db: None }
     }
 
-    pub async fn init(&self) {
+    pub async fn init(&mut self) {
         let setting = app_setting();
         let driver_url = setting.knife.db.driver_url.to_string();
         if !driver_url.is_empty() {
             debug!("连接数据源:{}", driver_url);
-            self.rb
-                .link(PgDriver {}, driver_url.as_str())
+            let pool = Pool::<Postgres>::connect(driver_url.as_str())
                 .await
                 .unwrap();
+            self.db.replace(AnyValue::new(pool));
         }
     }
 
@@ -39,21 +40,10 @@ impl Db {
     }
 }
 
-pub fn rb() -> &'static mut Rbatis {
+pub fn db<T>() -> &'static mut Pool<T>
+where
+    T: Database,
+{
     let db = Db::get_instance() as &mut Db;
-    &mut db.rb
-}
-
-#[macro_export]
-macro_rules! rb_tx {
-    () => {
-        rb().acquire_begin()
-            .await
-            .unwrap()
-            .defer_async(|mut tx__1| async move {
-                if !tx__1.is_done() {
-                    tx__1.rollback().await.unwrap();
-                }
-            })
-    };
+    db.db.as_ref().unwrap().as_mut::<Pool<T>>()
 }

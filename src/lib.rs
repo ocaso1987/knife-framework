@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate lazy_static;
-
 pub(crate) mod app {
     pub(crate) mod application;
     pub(crate) mod config;
@@ -26,16 +23,10 @@ pub mod model {
     pub(crate) mod common;
     pub use common::*;
 }
-pub mod ext {
-    pub(crate) mod error;
-    pub(crate) mod page;
-    pub use error::from_rbatis;
-    pub use page::*;
-}
+// pub mod ext {}
 
 pub mod crates {
     pub use knife_util::crates::*;
-    pub use tracing;
 }
 
 pub use knife_macro::*;
@@ -45,7 +36,7 @@ pub mod util {
 
 pub use app::{
     config::{add_config, app_raw_setting, app_setting},
-    db::rb,
+    db::db,
 };
 pub use bean::{
     component::{Component, ComponentTrait, RouterTrait},

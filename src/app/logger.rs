@@ -1,6 +1,13 @@
 use knife_macro::knife_component;
-use knife_util::Result;
-use tracing_subscriber::{prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt};
+use knife_util::{
+    crates::{
+        opentelemetry_jaeger, tracing_opentelemetry,
+        tracing_subscriber::{
+            self, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
+        },
+    },
+    Result,
+};
 
 #[knife_component(name = "GLOBAL_LOGGER", crate_builtin_name = "crate")]
 pub struct Logger {}

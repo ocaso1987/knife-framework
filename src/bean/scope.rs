@@ -3,6 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use knife_util::crates::lazy_static;
 use tracing::debug;
 
 use super::component::Component;
@@ -12,7 +13,7 @@ pub(crate) struct Container {
     pub(crate) component_map: HashMap<String, Component>,
 }
 
-lazy_static! {
+lazy_static::lazy_static! {
     static ref GLOBAL_SCOPE: Arc<Mutex<HashMap<String, Container>>> =
         Arc::new(Mutex::new(HashMap::new()));
 }

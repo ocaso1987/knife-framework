@@ -6,9 +6,9 @@ use knife_util::{
         bson::{self, bson, Bson},
         serde_yaml, toml,
     },
-    BsonConvertExt, MergeExt, Result,
+    BsonConvertExt, MergeExt, Result, StringExt,
 };
-use tracing::{debug, info, log::trace};
+use tracing::{debug, info, trace};
 
 use super::setting::Setting;
 
@@ -48,11 +48,23 @@ impl Config {
     }
 
     pub fn set_default(&mut self) {
-        let mut setting = self.setting.as_mut().unwrap();
-        setting.knife.project_id = std::env::var("knife_project_id").unwrap();
-        setting.knife.application_id = std::env::var("knife_application_id").unwrap();
-        setting.knife.command.name = std::env::var("knife_command_name").unwrap_or("".to_string());
-        self.raw_setting.replace(bson::to_bson(setting).unwrap());
+        let setting = self.setting.as_mut().unwrap();
+        let mut origin_data = self.raw_setting.as_ref().unwrap().clone();
+        let new_data = bson! ({
+            "knife": {
+                "project_id": std::env::var("knife_project_id").unwrap(),
+                "application_id": std::env::var("knife_application_id").unwrap(),
+                "cluster_id": setting.knife.cluster_id.if_blank("default".to_string()),
+                "env_id": setting.knife.env_id.if_blank("default".to_string()),
+                "command": {
+                    "name": std::env::var("knife_command_name").unwrap_or("".to_string())
+                }
+            }
+        });
+        origin_data = origin_data.merge(&new_data).unwrap();
+        self.setting
+            .replace(bson::from_bson::<Setting>(origin_data.clone()).unwrap());
+        self.raw_setting.replace(origin_data.clone());
     }
 
     pub fn load_from_file(&mut self) {
@@ -105,7 +117,7 @@ impl Config {
             vec.push("application.".to_string() + suffix);
         }
         for suffix in ["yaml", "yml", "toml"] {
-            vec.push("application_".to_string() + env_id + "." + suffix);
+            vec.push("application-".to_string() + env_id + "." + suffix);
         }
         for profile in env_profiles {
             for suffix in ["yaml", "yml", "toml"] {
@@ -121,6 +133,8 @@ impl Config {
             "knife": {
                 "project_id": std::env::var("knife_project_id").unwrap(),
                 "application_id": std::env::var("knife_application_id").unwrap(),
+                "cluster_id": std::env::var("knife_cluster_id").unwrap_or("".to_string()),
+                "env_id": std::env::var("knife_env_id").unwrap_or("".to_string()),
                 "command": {
                     "name": std::env::var("knife_command_name").unwrap_or("".to_string())
                 }

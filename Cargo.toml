@@ -1,26 +1,17 @@
 [package]
-description = "Knife框架"
-edition = "2021"
-license = "Apache-2.0"
 name = "knife-framework"
-repository = "https://github.com/ocaso1987/knife-framework/"
-version = "0.1.1"
+version = "0.1.2"
+authors = ["ocaso <ocaso1987@qq.com>"]
+description = "Knife微服务框架"
+repository = "https://github.com/ocaso1987/knife-macro/"
+license = "Apache-2.0"
+edition = "2021"
 
 [dependencies]
-knife-macro = { git = "https://github.com/ocaso1987/knife-macro.git", branch = "v0.1.1-dev" }
-knife-util = { git = "https://github.com/ocaso1987/knife-util.git", branch = "v0.1.1-dev" }
-opentelemetry = "0.17.0"
-opentelemetry-jaeger = "0.16.0"
+knife-macro = "0.1.2"
+knife-util = "0.1.2"
+serde = "1.0.144"
 tracing = "0.1.36"
-tracing-opentelemetry = "0.17.4"
-tracing-subscriber = "0.3.15"
-lazy_static = "1.4.0"
-anyhow = "1.0.62"
-serde = { version = "1.0.144", features = ["derive"] }
-serde_json = "1.0.85"
-rbs = "0.1.6"
-rbatis = "4.0.30"
-rbdc-pg="0.1.14"
 
 [features]
 default = []
