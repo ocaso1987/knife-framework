@@ -8,8 +8,8 @@ license = "Apache-2.0"
 edition = "2021"
 
 [dependencies]
-knife-macro = "0.1.2"
-knife-util = "0.1.2"
+knife-macro = "0.1.3"
+knife-util = "0.1.3"
 serde = "1.0.144"
 tracing = "0.1.36"
 
