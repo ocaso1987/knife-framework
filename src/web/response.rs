@@ -3,8 +3,13 @@ use knife_util::{
     AnyError, Result,
 };
 
+/// 响应对象
+///
+/// 现fn回调的结果会自动转换为hyper的response进行处理
 pub struct HyperResponse {
+    /// 响应结果
     resp: Option<Response<Body>>,
+    /// 响应异常
     err: Option<AnyError>,
 }
 

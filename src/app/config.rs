@@ -1,3 +1,6 @@
+//! 配置加载模块
+//! 
+//! 用于从工程目录、系统目录或环境变量中加载配置信息
 use std::{fs::File, io::Read, path::Path};
 
 use knife_macro::knife_component;
@@ -12,18 +15,23 @@ use tracing::{debug, info, trace};
 
 use super::setting::Setting;
 
+/// 配置数据结构体
 #[knife_component(
     name = "GLOBAL_CONFIG",
     generate_method = "new",
     crate_builtin_name = "crate"
 )]
 pub struct Config {
+    /// 被统一处理转换的默认数据格式
     pub setting: Option<Setting>,
+    /// BSON存储的原始配置数据
     pub raw_setting: Option<Bson>,
+    /// 程序启动通过注解配置的自定义配置数据
     pub custom_config: Vec<String>,
 }
 
 impl Config {
+    /// 配置模块构造器
     pub(crate) fn new() -> Self {
         Config {
             setting: None,
@@ -31,6 +39,8 @@ impl Config {
             custom_config: vec![],
         }
     }
+
+    /// 加载配置模块，并显示加载后数据概要信息
     pub(crate) async fn launch() -> Result<()> {
         let config = Config::get_instance() as &mut Config;
         config.load_from_env();
@@ -47,6 +57,7 @@ impl Config {
         Ok(())
     }
 
+    /// 为防止project_id和application_id被配置文件覆盖并进行强制锁定，设置配置空值时的默认参数
     pub fn set_default(&mut self) {
         let setting = self.setting.as_mut().unwrap();
         let mut origin_data = self.raw_setting.as_ref().unwrap().clone();
@@ -67,6 +78,7 @@ impl Config {
         self.raw_setting.replace(origin_data.clone());
     }
 
+    /// 从配置文件中加载应用配置
     pub fn load_from_file(&mut self) {
         info!("从配置文件中加载应用配置...");
         let setting_all = self.setting_all();
@@ -94,6 +106,7 @@ impl Config {
         self.raw_setting.replace(origin_data.clone());
     }
 
+    /// 检查配置文件是否存在
     pub(crate) fn check_setting_file_persent(&self, setting: Vec<String>) -> Vec<String> {
         let mut vec = Vec::<String>::new();
         for filename in setting {
@@ -108,6 +121,7 @@ impl Config {
         vec
     }
 
+    /// 拼装所有配置文件名称
     pub(crate) fn setting_all(&self) -> Vec<String> {
         let mut vec = Vec::<String>::new();
         let setting = self.setting.as_ref().unwrap();
@@ -127,6 +141,7 @@ impl Config {
         vec
     }
 
+    /// 从上下文环境中加载应用配置
     pub fn load_from_env(&mut self) {
         info!("从上下文环境中加载应用配置...");
         let new_data = bson! ({
@@ -146,16 +161,19 @@ impl Config {
     }
 }
 
+/// 解析后的配置内容
 pub fn app_setting() -> &'static Setting {
     let config = Config::get_instance() as &mut Config;
     config.setting.as_ref().unwrap()
 }
 
+/// BSON存储的原始配置内容
 pub fn app_raw_setting() -> &'static Bson {
     let config = Config::get_instance() as &mut Config;
     config.raw_setting.as_ref().unwrap()
 }
 
+/// 添加自定义的Yaml格式配置
 pub fn add_config(str: &'static str) {
     let config = Config::get_instance() as &mut Config;
     config.custom_config.push(str.to_string());

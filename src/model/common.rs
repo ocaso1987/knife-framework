@@ -1,6 +1,8 @@
+//! 公共模型
 use knife_util::VecExt;
 use serde::{Deserialize, Serialize};
 
+/// 分页请求
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct PageRequest<T> {
     /// 页码
@@ -9,6 +11,7 @@ pub struct PageRequest<T> {
     /// 每页条数
     #[serde(default)]
     pub limit: u64,
+    /// 请求参数
     #[serde(flatten, default)]
     pub target: T,
 }
@@ -26,6 +29,7 @@ impl<T> PageRequest<T> {
     }
 }
 
+/// 分页响应
 #[derive(Serialize, Debug, Clone, Default)]
 pub struct PageResult<T> {
     /// 页码
@@ -56,6 +60,7 @@ impl<T> PageResult<T> {
     }
 }
 
+/// 应用参数属性模型
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct AppInfo {
     /// 项目名称
@@ -75,6 +80,7 @@ pub struct AppInfo {
     pub env_id: String,
 }
 
+/// 应用参数查询请求模型
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct AppInfoQuery {
     /// 项目名称
@@ -94,6 +100,7 @@ pub struct AppInfoQuery {
     pub env_id: Option<String>,
 }
 
+/// 返回码
 #[derive(Serialize, Debug, Clone, Default)]
 pub struct RespStatus {
     /// 响应码

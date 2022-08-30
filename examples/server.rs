@@ -6,15 +6,7 @@ use knife_framework::{
 };
 
 #[knife_server(project = "knife", application = "knife-sample")]
-async fn main() {
-    add_config(
-        r#"
-            knife:
-                web_server:
-                    port: 8080
-        "#,
-    );
-}
+async fn main() {}
 
 #[knife_router(path = "/hello", method = "get")]
 async fn handler(req: Request<Body>) -> Result<Response<Body>> {

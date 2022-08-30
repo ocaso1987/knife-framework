@@ -1,3 +1,4 @@
+//! 日志模块
 use knife_macro::knife_component;
 use knife_util::{
     crates::{
@@ -9,6 +10,7 @@ use knife_util::{
     Result,
 };
 
+/// 日志模块
 #[knife_component(name = "GLOBAL_LOGGER", crate_builtin_name = "crate")]
 pub struct Logger {}
 

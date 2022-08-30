@@ -1,3 +1,4 @@
+//! 数据库初始化模块
 use knife_macro::knife_component;
 use knife_util::{
     crates::sqlx::{Database, Pool, Postgres},
@@ -5,8 +6,11 @@ use knife_util::{
 };
 use tracing::debug;
 
-use super::config::app_setting;
+use crate::app_setting;
 
+/// 数据库初始模块结构体
+///
+/// 内部采用sqlx数据源
 #[knife_component(
     name = "GLOBAL_DB",
     generate_method = "new",
@@ -18,29 +22,33 @@ pub struct Db {
 }
 
 impl Db {
+    /// 数据库模块构造器
     pub(crate) fn new() -> Self {
         Db { db: None }
     }
 
+    /// 数据库连接初始化
     pub async fn init(&mut self) {
         let setting = app_setting();
-        let driver_url = setting.knife.db.driver_url.to_string();
-        if !driver_url.is_empty() {
-            debug!("连接数据源:{}", driver_url);
-            let pool = Pool::<Postgres>::connect(driver_url.as_str())
+        let database_url = setting.knife.db.database_url.to_string();
+        if !database_url.is_empty() {
+            debug!("连接数据源:{}", database_url);
+            let pool = Pool::<Postgres>::connect(database_url.as_str())
                 .await
                 .unwrap();
             self.db.replace(AnyValue::new(pool));
         }
     }
 
+    /// 加载数据库模块
     pub(crate) async fn launch() -> Result<()> {
         let _ = Db::get_instance_async().await as &mut Db;
         Ok(())
     }
 }
 
-pub fn db<T>() -> &'static mut Pool<T>
+/// 获取数据库连接
+pub fn db_conn<T>() -> &'static mut Pool<T>
 where
     T: Database,
 {

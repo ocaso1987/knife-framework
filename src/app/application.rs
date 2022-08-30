@@ -1,3 +1,4 @@
+//! 应用程序模块
 use knife_macro::knife_component;
 use knife_util::{
     crates::tokio::{
@@ -11,13 +12,17 @@ use tracing::debug;
 use std::{collections::HashMap, future::Future};
 
 use crate::{
-    app::{config::Config, db::Db, logger::Logger},
+    app::{config::Config, logger::Logger},
     boot::bootstrap::Bootstrap,
+    db::Db,
     web::server::Web,
 };
 
+/// 应用事件
 pub struct ApplicationEvent {
+    /// 应用事件名称
     name: String,
+    /// 应用事件参数
     param: Vec<String>,
 }
 
@@ -30,26 +35,39 @@ impl std::fmt::Debug for ApplicationEvent {
     }
 }
 
+/// 应用事件：已初始化，默认main方法将在此时进行处理
 pub const EVENT_INIT: &'static str = "INIT";
+/// 应用事件：已加载配置
 pub const EVENT_CONFIG: &'static str = "CONFIG";
+/// 应用事件：已完成应用模块加载
 pub const EVENT_LAUNCH: &'static str = "LAUNCH";
+/// 应用事件：已完成应用准备工作
 pub const EVENT_READY: &'static str = "READY";
+/// 应用事件：已启动
 pub const EVENT_STARTED: &'static str = "STARTED";
 
+/// 应用程序模块
+///
+/// 应用程序模块运行在独立线程，内含一组消息通道和一个消息回调方法集合
+/// 当消息通道接受到应用消息时，会调用是否有默认消息回调方法进行处理
+/// 这个一个简易的事件传递机制，后续会按生命周期继续优化重构
 #[knife_component(
     name = "GLOBAL_APPLICATION",
     generate_method = "new",
     crate_builtin_name = "crate"
 )]
 pub struct Application {
+    /// 消息通道，接收应用消息
     channel: (
         UnboundedSender<ApplicationEvent>,
         UnboundedReceiver<ApplicationEvent>,
     ),
+    /// 应用回调，处理应用消息
     handlers: HashMap<String, FutureHandler<'static, ApplicationEvent, ()>>,
 }
 
 impl Application {
+    /// 应用模块构造器
     pub(crate) fn new() -> Self {
         Application {
             channel: unbounded_channel::<ApplicationEvent>(),
@@ -57,6 +75,7 @@ impl Application {
         }
     }
 
+    /// 处理应用消息
     pub(crate) async fn on_receive_event(msg: ApplicationEvent) {
         debug!("接受到事件{:?}", msg);
         let app = Application::get_instance() as &mut Application;
@@ -69,6 +88,7 @@ impl Application {
     }
 }
 
+/// 初始化应用模块处理线程
 pub async fn launch_application() -> Result<()> {
     debug!("线程ApplicationThread初始化...");
     let app = Application::get_instance() as &mut Application;
@@ -101,6 +121,7 @@ pub async fn launch_application() -> Result<()> {
     Ok(())
 }
 
+/// 发送应用消息，并交由应用模块线程进行处理
 pub(crate) fn send_application_event(event_name: &'static str, event_params: Vec<String>) {
     let app = Application::get_instance() as &mut Application;
     app.channel
@@ -112,6 +133,7 @@ pub(crate) fn send_application_event(event_name: &'static str, event_params: Vec
         .unwrap();
 }
 
+/// 设置应用处理回调，以处理应用消息
 pub fn set_application_hook<F, R>(event_name: &'static str, hook: F)
 where
     F: (FnOnce(ApplicationEvent) -> R) + Send + 'static,

@@ -13,21 +13,32 @@ use tracing::debug;
 
 use crate::{app_setting, boot::bootstrap::Bootstrap, component_global, foreach_global, Component};
 
+/// Web服务模块
 #[knife_component(name = "GLOBAL_WEB", crate_builtin_name = "crate")]
 pub struct Web {
+    /// 路由对象缓存
+    ///
+    /// 如果路由在此处命中，则无需从全局容器中查找合适的路由
     router_map: HashMap<String, AnyRef>,
 }
 
 impl Web {
+    /// 路由模块初始化
     pub async fn launch() -> Result<()> {
         Ok(())
     }
+
+    /// 路由模块启动
+    ///
+    /// 发送消息到Bootstrap模块以启动线程
     pub async fn start() {
         Bootstrap::new_thread("WebServerThread", async move {
             debug!("线程WebServerThread初始化...");
             Self::start_instance().await;
         });
     }
+
+    /// 路由模块启动
     pub async fn start_instance() {
         let port = app_setting().knife.web_server.port;
         if port != 0 {
@@ -44,6 +55,7 @@ impl Web {
     }
 }
 
+/// 匹配路由请求
 async fn match_req(req: Request<Body>) -> Result<Response<Body>> {
     let router_name = &format!(
         "{}:{}",
@@ -75,6 +87,7 @@ async fn match_req(req: Request<Body>) -> Result<Response<Body>> {
     }
 }
 
+/// 获取匹配的路由
 fn get_match_router(router_name: &String) -> Option<&'static mut Component> {
     let router = component_global("router".to_string(), router_name.clone());
     if router.is_some() {

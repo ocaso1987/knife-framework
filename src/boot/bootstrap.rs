@@ -1,3 +1,4 @@
+//! 应用启动模块
 use std::future::Future;
 
 use knife_macro::knife_component;
@@ -21,7 +22,9 @@ use crate::{
 };
 pub(crate) const SERVER: &'static str = "SERVER";
 
+/// 应用启动事件
 pub enum BootstrapEvent {
+    /// 新建线程事件
     NewThread {
         thread_name: &'static str,
         action: FutureObj<'static, ()>,
@@ -42,12 +45,16 @@ impl std::fmt::Debug for BootstrapEvent {
     }
 }
 
+/// 应用启动模块
+/// 
+/// 内部包含一个消息通道以处理应用启动事件
 #[knife_component(
     name = "GLOBAL_BOOTSTRAP",
     generate_method = "new",
     crate_builtin_name = "crate"
 )]
 pub struct Bootstrap {
+    /// 消息通道
     channel: (
         UnboundedSender<BootstrapEvent>,
         UnboundedReceiver<BootstrapEvent>,
@@ -55,11 +62,14 @@ pub struct Bootstrap {
 }
 
 impl Bootstrap {
+    /// 启动模块构造器
     pub(crate) fn new() -> Self {
         Bootstrap {
             channel: unbounded_channel::<BootstrapEvent>(),
         }
     }
+
+    /// 启动模块进行启动
     pub(crate) fn start<F>(&mut self, start_type: &'static str, f: F) -> &Self
     where
         F: Fn() + Send + 'static,
@@ -92,6 +102,7 @@ impl Bootstrap {
         self
     }
 
+    /// 处理启动事件
     async fn on_receive_event(event: BootstrapEvent) {
         debug!("接受到事件BootstrapEvent {:?}", event);
         match event {
@@ -104,6 +115,7 @@ impl Bootstrap {
         }
     }
 
+    /// 发送新建线程的启动事件，并在线程启动后进行回调
     pub(crate) fn new_thread<F>(thread_name: &'static str, callback: F)
     where
         F: Future<Output = ()> + Send + 'static,

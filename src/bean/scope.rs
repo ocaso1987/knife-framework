@@ -8,19 +8,23 @@ use tracing::debug;
 
 use super::component::Component;
 
+/// 存放全局对象的窗口
 pub(crate) struct Container {
     pub(crate) _container_name: String,
     pub(crate) component_map: HashMap<String, Component>,
 }
 
 lazy_static::lazy_static! {
+    /// 全局上下文
     static ref GLOBAL_SCOPE: Arc<Mutex<HashMap<String, Container>>> =
         Arc::new(Mutex::new(HashMap::new()));
 }
 
+/// 上下文
 pub(crate) struct GlobalScope {}
 
 impl GlobalScope {
+    /// 获取上下文对象容器
     pub(crate) fn get_container(container_name: String) -> &'static mut Container {
         let mut container_map = GLOBAL_SCOPE.lock().unwrap();
         if !container_map.contains_key(container_name.as_str()) {
@@ -36,6 +40,7 @@ impl GlobalScope {
         unsafe { &mut *(container as *mut Container) }
     }
 
+    /// 获取上下文对象
     pub(crate) fn get_component(
         container_name: String,
         name: String,
@@ -48,6 +53,7 @@ impl GlobalScope {
         component_map.get_mut(name.as_str())
     }
 
+    /// 注册上下文容器
     pub(crate) fn register_component<V>(
         container_name: String,
         name: String,
@@ -70,6 +76,7 @@ impl GlobalScope {
         component_map.get_mut(name.as_str()).unwrap().as_mut::<V>()
     }
 
+    /// 遍历上下文容器
     pub(crate) fn foreach_component<F>(container_name: String, mut f: F)
     where
         F: FnMut((String, &'static mut Component)) + Send + Sync,
