@@ -15,6 +15,7 @@ use knife_util::{
 pub struct Logger {}
 
 impl Logger {
+    
     pub(crate) async fn launch() -> Result<()> {
         let logger = Logger::get_instance() as &mut Logger;
         logger.load_default();

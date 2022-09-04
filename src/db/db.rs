@@ -1,12 +1,9 @@
 //! 数据库初始化模块
 use knife_macro::knife_component;
-use knife_util::{
-    crates::sqlx::{Database, Pool, Postgres},
-    AnyValue, Result,
-};
+use knife_util::{crates::rbatis::Rbatis, Result};
 use tracing::debug;
 
-use crate::app_setting;
+use crate::{app_setting, crates::rbdc_pg::driver::PgDriver};
 
 /// 数据库初始模块结构体
 ///
@@ -18,13 +15,13 @@ use crate::app_setting;
     crate_builtin_name = "crate"
 )]
 pub struct Db {
-    pub(crate) db: Option<AnyValue>,
+    pub(crate) db: Rbatis,
 }
 
 impl Db {
     /// 数据库模块构造器
     pub(crate) fn new() -> Self {
-        Db { db: None }
+        Db { db: Rbatis::new() }
     }
 
     /// 数据库连接初始化
@@ -33,10 +30,7 @@ impl Db {
         let database_url = setting.knife.db.database_url.to_string();
         if !database_url.is_empty() {
             debug!("连接数据源:{}", database_url);
-            let pool = Pool::<Postgres>::connect(database_url.as_str())
-                .await
-                .unwrap();
-            self.db.replace(AnyValue::new(pool));
+            self.db.init(PgDriver {}, database_url.as_str()).unwrap();
         }
     }
 
@@ -47,11 +41,30 @@ impl Db {
     }
 }
 
-/// 获取数据库连接
-pub fn db_conn<T>() -> &'static mut Pool<T>
-where
-    T: Database,
-{
+pub async fn get_db() -> &'static Rbatis {
     let db = Db::get_instance() as &mut Db;
-    db.db.as_ref().unwrap().as_mut::<Pool<T>>()
+    &db.db
 }
+
+// pub async fn with_tx<T, R, Z>(r: R) -> Result<Z>
+// where
+//     T: Database,
+//     R: Future<Output = Result<Z>> + Send + 'static,
+//     Z: Send,
+// {
+//     let db = Db::get_instance() as &mut Db;
+//     let t_type = type_name::<T>();
+//     if t_type == "Postgres" {
+//         let util = db.db_util.as_ref().unwrap().as_ref::<PostgresDbUtil>();
+//         let tx = PostgresDbUtil::get_tx().await;
+//         let res = r.await;
+//         if res.is_ok() {
+//             tx.commit().await;
+//         } else {
+//             tx.rollback().await;
+//         }
+//         return res;
+//     } else {
+//         panic!("不支持的数据类型");
+//     }
+// }
