@@ -2,14 +2,17 @@ use std::collections::HashMap;
 
 use knife_macro::knife_component;
 use knife_util::{
+    any::AnyRef,
     crates::hyper::{
         server::conn::AddrStream,
         service::{make_service_fn, service_fn},
         Body, Request, Response, Server, StatusCode,
     },
-    AnyError, AnyRef, Result, StringExt, ERR_WEB,
+    error::{AppError, ERR_WEB},
+    types::StringExt,
+    Result,
 };
-use tracing::debug;
+use tracing::{debug, log::warn};
 
 use crate::{app_setting, boot::bootstrap::Bootstrap, component_global, foreach_global, Component};
 
@@ -44,7 +47,7 @@ impl Web {
         if port != 0 {
             let addr = format!("127.0.0.1:{}", port).parse().unwrap();
             let new_service = make_service_fn(move |_socket: &AddrStream| async move {
-                Ok::<_, AnyError>(service_fn(move |req: Request<Body>| async move {
+                Ok::<_, AppError>(service_fn(move |req: Request<Body>| async move {
                     match_req(req).await
                 }))
             });
@@ -70,9 +73,11 @@ async fn match_req(req: Request<Body>) -> Result<Response<Body>> {
         if resp.is_ok() {
             resp
         } else {
+            let err = resp.err().unwrap();
+            warn!("全局异常:{:?}", err);
             Ok(Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(Body::from(resp.err().unwrap().to_json_string()))
+                .body(Body::from(err.to_json_string()))
                 .unwrap())
         }
     } else {

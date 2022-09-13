@@ -1,11 +1,12 @@
 //! 应用程序模块
 use knife_macro::knife_component;
 use knife_util::{
+    any::{AnyFuture, AnyHandler},
     crates::tokio::{
         self, join, select,
         sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
     },
-    FutureHandler, FutureObj, Result,
+    Result,
 };
 use tracing::debug;
 
@@ -63,7 +64,7 @@ pub struct Application {
         UnboundedReceiver<ApplicationEvent>,
     ),
     /// 应用回调，处理应用消息
-    handlers: HashMap<String, FutureHandler<'static, ApplicationEvent, ()>>,
+    handlers: HashMap<String, AnyHandler<'static, ApplicationEvent, ()>>,
 }
 
 impl Application {
@@ -142,8 +143,8 @@ where
     let app = Application::get_instance() as &mut Application;
     app.handlers.insert(
         event_name.to_string(),
-        FutureHandler::new(Box::new(|msg| {
-            FutureObj::new(Box::new(async move { hook(msg).await }))
+        AnyHandler::new(Box::new(|msg| {
+            AnyFuture::new(Box::new(async move { hook(msg).await }))
         })),
     );
 }

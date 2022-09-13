@@ -1,3 +1,6 @@
-remote_theme: pages-themes/architect@v0.2.0
+title: Knife-framework微服务框架
+author: CaiHuajiang
+email: ocaso1987@qq.com
+remote_theme: pages-themes/cayman@v0.2.0
 plugins:
 - jekyll-remote-theme
