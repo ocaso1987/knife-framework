@@ -1,6 +1,6 @@
 [package]
 name = "knife-framework"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["ocaso <ocaso1987@qq.com>"]
 description = "Knife微服务框架"
 repository = "https://github.com/ocaso1987/knife-macro/"
@@ -8,8 +8,8 @@ license = "Apache-2.0"
 edition = "2021"
 
 [dependencies]
-knife-macro = "0.1.4"
-knife-util = "0.1.4"
+knife-macro = "0.1.5"
+knife-util = "0.1.5"
 serde = "1.0.144"
 tracing = "0.1.36"
 

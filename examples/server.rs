@@ -1,5 +1,4 @@
 use knife_framework::{
-    add_config,
     crates::hyper::{Body, Request, Response},
     knife_router, knife_server,
     util::Result,

@@ -3,13 +3,13 @@ use std::future::Future;
 
 use knife_macro::knife_component;
 use knife_util::{
+    any::AnyFuture,
     crates::tokio::{
         self,
         runtime::Runtime,
         select,
         sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
     },
-    FutureObj,
 };
 use tracing::debug;
 
@@ -27,7 +27,7 @@ pub enum BootstrapEvent {
     /// 新建线程事件
     NewThread {
         thread_name: &'static str,
-        action: FutureObj<'static, ()>,
+        action: AnyFuture<'static, ()>,
     },
 }
 
@@ -46,7 +46,7 @@ impl std::fmt::Debug for BootstrapEvent {
 }
 
 /// 应用启动模块
-/// 
+///
 /// 内部包含一个消息通道以处理应用启动事件
 #[knife_component(
     name = "GLOBAL_BOOTSTRAP",
@@ -126,7 +126,7 @@ impl Bootstrap {
             .0
             .send(BootstrapEvent::NewThread {
                 thread_name,
-                action: FutureObj::new(Box::new(callback)),
+                action: AnyFuture::new(Box::new(callback)),
             })
             .unwrap();
     }

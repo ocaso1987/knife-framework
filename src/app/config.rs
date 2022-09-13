@@ -6,7 +6,9 @@ use std::{fs::File, io::Read, path::Path};
 use knife_macro::knife_component;
 use knife_util::{
     crates::{serde_json::json, serde_yaml, toml},
-    Ok, Result, StringExt, Value, ValueConvertExt, ValueMergeExt, ValuePointerExt, VecExt,
+    types::{StringExt, VecExt},
+    value::{ConvertExt, MergeExt, PointerExt, Value},
+    Ok, Result,
 };
 use tracing::{debug, info, trace};
 
