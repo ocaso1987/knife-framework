@@ -1,6 +1,7 @@
 use knife_util::{
     crates::hyper::{Body, Response},
-    AnyError, Result,
+    error::AppError,
+    Result,
 };
 
 /// 响应对象
@@ -10,7 +11,7 @@ pub struct HyperResponse {
     /// 响应结果
     resp: Option<Response<Body>>,
     /// 响应异常
-    err: Option<AnyError>,
+    err: Option<AppError>,
 }
 
 impl From<Result<Response<Body>>> for HyperResponse {
