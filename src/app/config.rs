@@ -1,15 +1,14 @@
 //! 配置加载模块
-//! 
+//!
 //! 用于从工程目录、系统目录或环境变量中加载配置信息
 use std::{fs::File, io::Read, path::Path};
 
 use knife_macro::knife_component;
 use knife_util::{
-    crates::{
-        bson::{self, bson, Bson},
-        serde_yaml, toml,
-    },
-    BsonConvertExt, MergeExt, Result, StringExt,
+    crates::{serde_json::json, serde_yaml, toml},
+    types::{StringExt, VecExt},
+    value::{ConvertExt, MergeExt, PointerExt, Value},
+    Ok, Result,
 };
 use tracing::{debug, info, trace};
 
@@ -24,8 +23,8 @@ use super::setting::Setting;
 pub struct Config {
     /// 被统一处理转换的默认数据格式
     pub setting: Option<Setting>,
-    /// BSON存储的原始配置数据
-    pub raw_setting: Option<Bson>,
+    /// 内置Value存储的原始配置数据
+    pub raw_setting: Option<Value>,
     /// 程序启动通过注解配置的自定义配置数据
     pub custom_config: Vec<String>,
 }
@@ -42,10 +41,10 @@ impl Config {
 
     /// 加载配置模块，并显示加载后数据概要信息
     pub(crate) async fn launch() -> Result<()> {
-        let config = Config::get_instance() as &mut Config;
-        config.load_from_env();
-        config.load_from_file();
-        config.set_default();
+        let config: &mut Config = Config::get_instance();
+        config.load_from_env()?;
+        config.load_from_file()?;
+        config.set_default()?;
 
         let setting = app_setting();
         debug!("  - project_id: {}", setting.knife.project_id);
@@ -58,56 +57,59 @@ impl Config {
     }
 
     /// 为防止project_id和application_id被配置文件覆盖并进行强制锁定，设置配置空值时的默认参数
-    pub fn set_default(&mut self) {
-        let setting = self.setting.as_mut().unwrap();
+    pub fn set_default(&mut self) -> Result<()> {
+        let raw_setting = self.raw_setting.as_ref().unwrap();
         let mut origin_data = self.raw_setting.as_ref().unwrap().clone();
-        let new_data = bson! ({
+        let new_data = json! ({
             "knife": {
                 "project_id": std::env::var("knife_project_id").unwrap(),
                 "application_id": std::env::var("knife_application_id").unwrap(),
-                "cluster_id": setting.knife.cluster_id.if_blank("default".to_string()),
-                "env_id": setting.knife.env_id.if_blank("default".to_string()),
+                "cluster_id": raw_setting.p("/knife/cluster_id").unwrap().as_str()?.if_blank("default".to_string()),
+                "env_id":  raw_setting.p("/knife/env_id").unwrap().as_str()?.if_blank("default".to_string()),
                 "command": {
                     "name": std::env::var("knife_command_name").unwrap_or("".to_string())
                 }
             }
-        });
+        })
+        .as_value();
         origin_data = origin_data.merge(&new_data).unwrap();
-        self.setting
-            .replace(bson::from_bson::<Setting>(origin_data.clone()).unwrap());
         self.raw_setting.replace(origin_data.clone());
+
+        let setting =
+            serde_yaml::from_value::<Setting>(serde_yaml::Value::from_value(&origin_data))?;
+        self.setting.replace(setting);
+        Ok(())
     }
 
     /// 从配置文件中加载应用配置
-    pub fn load_from_file(&mut self) {
+    pub fn load_from_file(&mut self) -> Result<()> {
         info!("从配置文件中加载应用配置...");
-        let setting_all = self.setting_all();
-        let setting_file = self.check_setting_file_persent(setting_all);
+        let setting_all = self.setting_all()?;
+        let setting_file = self.check_setting_file_persent(setting_all)?;
         let mut origin_data = self.raw_setting.as_ref().unwrap().clone();
         for path in setting_file {
             if path.ends_with(".yaml") || path.ends_with(".yml") {
                 let str = &mut String::new();
-                File::open(path).unwrap().read_to_string(str).unwrap();
-                let new_data: serde_yaml::Value = serde_yaml::from_str(str).unwrap();
-                origin_data = origin_data.merge(&new_data.as_bson()).unwrap();
+                File::open(path).unwrap().read_to_string(str)?;
+                let new_data: serde_yaml::Value = serde_yaml::from_str(str)?;
+                origin_data = origin_data.merge(&new_data.as_value())?
             } else if path.ends_with(".toml") {
                 let str = &mut String::new();
-                File::open(path).unwrap().read_to_string(str).unwrap();
-                let new_data: toml::Value = toml::from_str(str).unwrap();
-                origin_data = origin_data.merge(&new_data.as_bson()).unwrap();
+                File::open(path).unwrap().read_to_string(str)?;
+                let new_data: toml::Value = toml::from_str(str)?;
+                origin_data = origin_data.merge(&new_data.as_value())?;
             }
         }
         for str in self.custom_config.iter() {
-            let new_data: serde_yaml::Value = serde_yaml::from_str(str.as_str()).unwrap();
-            origin_data = origin_data.merge(&new_data.as_bson()).unwrap();
+            let new_data: serde_yaml::Value = serde_yaml::from_str(str.as_str())?;
+            origin_data = origin_data.merge(&new_data.as_value())?;
         }
-        self.setting
-            .replace(bson::from_bson::<Setting>(origin_data.clone()).unwrap());
         self.raw_setting.replace(origin_data.clone());
+        Ok(())
     }
 
     /// 检查配置文件是否存在
-    pub(crate) fn check_setting_file_persent(&self, setting: Vec<String>) -> Vec<String> {
+    pub(crate) fn check_setting_file_persent(&self, setting: Vec<String>) -> Result<Vec<String>> {
         let mut vec = Vec::<String>::new();
         for filename in setting {
             let filename = "./config/".to_string() + &filename;
@@ -118,15 +120,19 @@ impl Config {
                 vec.push(path)
             }
         }
-        vec
+        Ok(vec)
     }
 
     /// 拼装所有配置文件名称
-    pub(crate) fn setting_all(&self) -> Vec<String> {
+    pub(crate) fn setting_all(&self) -> Result<Vec<String>> {
         let mut vec = Vec::<String>::new();
-        let setting = self.setting.as_ref().unwrap();
-        let env_id = setting.knife.env_id.as_str();
-        let env_profiles = setting.knife.env_profiles.clone();
+        let raw_setting = self.raw_setting.as_ref().unwrap();
+        let env_id = raw_setting.p("/knife/env_id").unwrap().as_str()?;
+        let env_profiles = raw_setting
+            .p("/knife/env_profiles")
+            .unwrap()
+            .as_array()?
+            .map(|x| x.as_str().unwrap().to_string());
         for suffix in ["yaml", "yml", "toml"] {
             vec.push("application.".to_string() + suffix);
         }
@@ -138,43 +144,44 @@ impl Config {
                 vec.push("application_profile_".to_string() + profile.as_str() + "." + suffix);
             }
         }
-        vec
+        Ok(vec)
     }
 
     /// 从上下文环境中加载应用配置
-    pub fn load_from_env(&mut self) {
+    pub fn load_from_env(&mut self) -> Result<()> {
         info!("从上下文环境中加载应用配置...");
-        let new_data = bson! ({
+        let new_data = json! ({
             "knife": {
-                "project_id": std::env::var("knife_project_id").unwrap(),
-                "application_id": std::env::var("knife_application_id").unwrap(),
+                "project_id": std::env::var("knife_project_id")?,
+                "application_id": std::env::var("knife_application_id")?,
                 "cluster_id": std::env::var("knife_cluster_id").unwrap_or("".to_string()),
                 "env_id": std::env::var("knife_env_id").unwrap_or("".to_string()),
+                "env_profiles": std::env::var("knife_env_profiles").unwrap_or("".to_string()).split(",").collect::<Vec<&str>>(),
                 "command": {
                     "name": std::env::var("knife_command_name").unwrap_or("".to_string())
                 }
             }
-        });
-        self.setting
-            .replace(bson::from_bson::<Setting>(new_data.clone()).unwrap());
+        })
+        .as_value();
         self.raw_setting.replace(new_data.clone());
+        Ok(())
     }
 }
 
 /// 解析后的配置内容
 pub fn app_setting() -> &'static Setting {
-    let config = Config::get_instance() as &mut Config;
+    let config: &mut Config = Config::get_instance();
     config.setting.as_ref().unwrap()
 }
 
-/// BSON存储的原始配置内容
-pub fn app_raw_setting() -> &'static Bson {
-    let config = Config::get_instance() as &mut Config;
+/// 内置Value存储的原始配置内容
+pub fn app_raw_setting() -> &'static Value {
+    let config: &mut Config = Config::get_instance();
     config.raw_setting.as_ref().unwrap()
 }
 
 /// 添加自定义的Yaml格式配置
 pub fn add_config(str: &'static str) {
-    let config = Config::get_instance() as &mut Config;
+    let config: &mut Config = Config::get_instance();
     config.custom_config.push(str.to_string());
 }
