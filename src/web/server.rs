@@ -12,9 +12,12 @@ use knife_util::{
     types::StringExt,
     Result,
 };
-use tracing::{debug, log::warn};
+use tracing::{debug, warn};
 
-use crate::{app_setting, boot::bootstrap::Bootstrap, component_global, foreach_global, Component};
+use crate::{
+    app_setting, boot::bootstrap::Bootstrap, component_global, foreach_global, Component,
+    HyperRequest,
+};
 
 /// Web服务模块
 #[knife_component(name = "GLOBAL_WEB", crate_builtin_name = "crate")]
@@ -27,9 +30,7 @@ pub struct Web {
 
 impl Web {
     /// 路由模块初始化
-    pub async fn launch() -> Result<()> {
-        Ok(())
-    }
+    pub async fn launch() {}
 
     /// 路由模块启动
     ///
@@ -63,12 +64,12 @@ async fn match_req(req: Request<Body>) -> Result<Response<Body>> {
     let router_name = &format!(
         "{}:{}",
         req.method().to_string().to_uppercase(),
-        req.uri().path().to_string()
+        req.uri().path()
     );
-    let router = get_match_router(router_name);
+    let router = get_match_router(router_name.as_str());
     if let Some(c) = router {
-        let req = req.into();
-        let res = c.to_router().router_handle(req).await;
+        let req = HyperRequest::new(req, router_name.to_string());
+        let res = c.as_router().router_handle(req).await;
         let resp: Result<Response<Body>> = res.into();
         if resp.is_ok() {
             resp
@@ -85,7 +86,7 @@ async fn match_req(req: Request<Body>) -> Result<Response<Body>> {
             .status(StatusCode::NOT_FOUND)
             .body(Body::from(
                 ERR_WEB
-                    .msg_detail(format!("没找到路由{}", router_name.clone()))
+                    .msg_detail(format!("没找到路由{}", router_name.clone()).as_str())
                     .to_json_string(),
             ))
             .unwrap())
@@ -93,18 +94,18 @@ async fn match_req(req: Request<Body>) -> Result<Response<Body>> {
 }
 
 /// 获取匹配的路由
-fn get_match_router(router_name: &String) -> Option<&'static mut Component> {
-    let router = component_global("router".to_string(), router_name.clone());
+fn get_match_router(router_name: &str) -> Option<&'static mut Component> {
+    let router = component_global("router".to_string(), router_name.to_string());
     if router.is_some() {
         return router;
     }
     {
         let web = Web::get_instance() as &'static mut Web;
         let router_map = &mut web.router_map as &'static mut HashMap<String, AnyRef>;
-        if router_map.get(&router_name.clone()).is_none() {
+        if router_map.get(&router_name.to_string()).is_none() {
             foreach_global("router".to_string(), move |c| {
-                if router_name.clone().glob_match(c.0.to_string()) {
-                    router_map.insert(router_name.clone(), AnyRef::new(c.1));
+                if router_name.to_string().glob_match(c.0.to_string()) {
+                    router_map.insert(router_name.to_string(), AnyRef::new(c.1));
                 }
             });
         }
@@ -113,7 +114,7 @@ fn get_match_router(router_name: &String) -> Option<&'static mut Component> {
         let web = Web::get_instance() as &'static mut Web;
         let router_map = &mut web.router_map as &'static mut HashMap<String, AnyRef>;
         router_map
-            .get(&router_name.clone())
-            .map(|x| x.as_mut::<Component>())
+            .get(&router_name.to_string())
+            .map(|x| x.to_mut::<Component>())
     }
 }

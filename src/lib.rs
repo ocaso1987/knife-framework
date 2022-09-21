@@ -24,9 +24,9 @@ pub(crate) mod web {
 
 /// 数据库模块
 pub mod db {
-    pub(crate) mod db;
+    pub(crate) mod main;
     pub(crate) mod sql;
-    pub use db::*;
+    pub use main::*;
     pub use sql::*;
 }
 
@@ -48,6 +48,8 @@ pub use knife_macro::*;
 pub mod util {
     pub use knife_util::*;
 }
+
+mod macros;
 
 pub use app::config::{add_config, app_raw_setting, app_setting};
 pub use bean::{

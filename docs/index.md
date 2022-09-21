@@ -4,12 +4,14 @@
 
 # 目录
 
+
+* 说明
+    * [开发目标](goal.md)
+    * [技术选型](lectotype.md)
+
 * 组件
     * [knife-util](util.md)
     * [knife-macro](macro.md)
-
-* 技术
-    * [技术选型](lectotype.md)
 
 * 变更
     

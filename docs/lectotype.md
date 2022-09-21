@@ -44,9 +44,6 @@
 * **serde_yaml**
     * Yaml处理
 
-* **toml**
-    * Toml配置支持
-
 ## 数据库操作
 
 * **rbatis**
@@ -59,6 +56,3 @@
 
 * **hyper**
     * Web框架集成
-
-* **tonic**
-    * Grpc集成

@@ -1,6 +1,6 @@
 //! 数据库初始化模块
 use knife_macro::knife_component;
-use knife_util::{crates::rbatis::Rbatis, Result};
+use knife_util::crates::rbatis::Rbatis;
 use tracing::debug;
 
 use crate::{app_setting, crates::rbdc_pg::driver::PgDriver};
@@ -35,9 +35,8 @@ impl Db {
     }
 
     /// 加载数据库模块
-    pub(crate) async fn launch() -> Result<()> {
+    pub(crate) async fn launch() {
         let _ = Db::get_instance_async().await as &mut Db;
-        Ok(())
     }
 }
 

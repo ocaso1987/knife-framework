@@ -42,7 +42,7 @@ impl Component {
     }
 
     /// 将Component容器类型转换为路由类型
-    pub(crate) fn to_router(&mut self) -> &mut (dyn RouterTrait + Send + Sync) {
+    pub(crate) fn as_router(&mut self) -> &mut (dyn RouterTrait + Send + Sync) {
         match self {
             Component::ROUTER(r) => r.as_mut(),
             _ => panic!("不是Router对象"),

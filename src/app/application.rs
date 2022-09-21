@@ -2,9 +2,12 @@
 use knife_macro::knife_component;
 use knife_util::{
     any::{AnyFuture, AnyHandler},
-    crates::tokio::{
-        self, join, select,
-        sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    crates::{
+        futures::{join, select, FutureExt},
+        tokio::{
+            self,
+            sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+        },
     },
     Result,
 };
@@ -37,15 +40,15 @@ impl std::fmt::Debug for ApplicationEvent {
 }
 
 /// 应用事件：已初始化，默认main方法将在此时进行处理
-pub const EVENT_INIT: &'static str = "INIT";
+pub const EVENT_INIT: &str = "INIT";
 /// 应用事件：已加载配置
-pub const EVENT_CONFIG: &'static str = "CONFIG";
+pub const EVENT_CONFIG: &str = "CONFIG";
 /// 应用事件：已完成应用模块加载
-pub const EVENT_LAUNCH: &'static str = "LAUNCH";
+pub const EVENT_LAUNCH: &str = "LAUNCH";
 /// 应用事件：已完成应用准备工作
-pub const EVENT_READY: &'static str = "READY";
+pub const EVENT_READY: &str = "READY";
 /// 应用事件：已启动
-pub const EVENT_STARTED: &'static str = "STARTED";
+pub const EVENT_STARTED: &str = "STARTED";
 
 /// 应用程序模块
 ///
@@ -96,14 +99,14 @@ pub async fn launch_application() -> Result<()> {
     let (_s, r) = &mut app.channel;
 
     set_application_hook(EVENT_CONFIG, |_| async move {
-        Logger::launch().await.unwrap();
-        Config::launch().await.unwrap();
-        Logger::reload().await.unwrap();
+        Logger::launch().await;
+        Config::launch().await;
+        Logger::reload().await;
         send_application_event(EVENT_LAUNCH, vec![]);
     });
     set_application_hook(EVENT_LAUNCH, |_| async move {
         let _ = join!(Db::launch(), Web::launch());
-        let _ = async move {
+        async move {
             send_application_event(EVENT_READY, vec![]);
         }
         .await;
@@ -115,7 +118,7 @@ pub async fn launch_application() -> Result<()> {
         });
         loop {
             select! {
-                Some(msg) = r.recv() =>  Application::on_receive_event(msg).await,
+                msg = r.recv().fuse() =>  Application::on_receive_event(msg.unwrap()).await,
             }
         }
     });

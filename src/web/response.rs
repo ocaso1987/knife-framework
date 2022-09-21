@@ -1,8 +1,15 @@
 use knife_util::{
-    crates::hyper::{Body, Response},
+    bean::FromValueTrait,
+    crates::{
+        async_trait::async_trait,
+        hyper::{Body, Response},
+    },
+    crates_builtin::serde_json,
     error::AppError,
-    Result,
+    future::AsyncFrom,
+    Result, Value,
 };
+use tracing::info;
 
 /// 响应对象
 ///
@@ -14,28 +21,58 @@ pub struct HyperResponse {
     err: Option<AppError>,
 }
 
-impl From<Result<Response<Body>>> for HyperResponse {
-    fn from(res: Result<Response<Body>>) -> Self {
-        if res.is_ok() {
-            HyperResponse {
-                resp: res.ok(),
-                err: None,
+#[async_trait]
+impl AsyncFrom<(Result<Response<Body>>, String)> for HyperResponse {
+    async fn async_from(res: (Result<Response<Body>>, String)) -> Self {
+        match res.0 {
+            Ok(v) => {
+                info!("返回Web响应[{}],数据:$binary_data", res.1);
+                HyperResponse {
+                    resp: Some(v),
+                    err: None,
+                }
             }
-        } else {
-            HyperResponse {
-                resp: None,
-                err: res.err(),
+            Err(e) => {
+                info!("返回Web异常[{}],数据:{}", res.1, &e);
+                HyperResponse {
+                    resp: None,
+                    err: Some(e),
+                }
             }
         }
     }
 }
 
-impl Into<Result<Response<Body>>> for HyperResponse {
-    fn into(self) -> Result<Response<Body>> {
-        if self.resp.is_some() {
-            Ok(self.resp.unwrap())
+#[async_trait]
+impl AsyncFrom<(Result<Value>, String)> for HyperResponse {
+    async fn async_from(res: (Result<Value>, String)) -> Self {
+        match res.0 {
+            Ok(v) => {
+                let str = &serde_json::Value::from_value(&v).unwrap();
+                let msg = serde_json::to_string(str).unwrap();
+                info!("返回Web响应[{}],数据:{}", res.1, &msg);
+                HyperResponse {
+                    resp: Some(Response::new(Body::from(msg))),
+                    err: None,
+                }
+            }
+            Err(e) => {
+                info!("返回Web异常[{}],数据:{}", res.1, &e);
+                HyperResponse {
+                    resp: None,
+                    err: Some(e),
+                }
+            }
+        }
+    }
+}
+
+impl From<HyperResponse> for Result<Response<Body>> {
+    fn from(v: HyperResponse) -> Self {
+        if v.resp.is_some() {
+            Ok(v.resp.unwrap())
         } else {
-            Err(self.err.unwrap())
+            Err(v.err.unwrap())
         }
     }
 }
