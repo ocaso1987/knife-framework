@@ -4,11 +4,13 @@ use std::future::Future;
 use knife_macro::knife_component;
 use knife_util::{
     any::AnyFuture,
-    crates::tokio::{
-        self,
-        runtime::Runtime,
-        select,
-        sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    crates::{
+        futures::{select, FutureExt},
+        tokio::{
+            self,
+            runtime::Runtime,
+            sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+        },
     },
 };
 use tracing::debug;
@@ -20,7 +22,7 @@ use crate::{
     },
     web::server::Web,
 };
-pub(crate) const SERVER: &'static str = "SERVER";
+pub(crate) const SERVER: &str = "SERVER";
 
 /// 应用启动事件
 pub enum BootstrapEvent {
@@ -95,7 +97,7 @@ impl Bootstrap {
             tokio::spawn(launch_application()); //正式启动
             loop {
                 select! {
-                    Some(msg) = r.recv() =>  Bootstrap::on_receive_event(msg).await,
+                    msg = r.recv().fuse() =>  Bootstrap::on_receive_event(msg.unwrap()).await,
                 }
             }
         });

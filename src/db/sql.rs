@@ -1,41 +1,41 @@
 use std::collections::BTreeMap;
 
 use knife_util::{
-    context::ContextExt,
+    bean::FromValueTrait,
+    context::ContextTrait,
     crates::rbatis::rbdc::db::ExecResult,
     error::ERR_DB_DATA,
+    iter::VecExt,
     page::{get_offset, PageResult},
     template::render_sql_template,
-    types::{StringExt, VecExt},
-    value::{ConvertExt, Value},
-    Ok, Result,
+    types::StringExt,
+    Ok, Result, Value,
 };
 use serde::Deserialize;
+use tracing::info;
 
 use super::get_db;
 use crate::crates::rbs;
 
 pub async fn select_value(sql: String, param: &Value) -> Result<rbs::Value> {
-    let v = select_row(sql, param).await.unwrap();
+    let v = select_row(sql, param).await?;
     match v {
         Some(v2) => {
             if v2.is_map() {
                 let map = v2.as_map().unwrap();
                 match map.first() {
                     Some((_k3, v3)) => Ok(v3.clone()),
-                    None => Err(ERR_DB_DATA
-                        .msg_detail("返回数据格式错误，期望单条数据，实际返回0条".to_string())),
+                    None => {
+                        Err(ERR_DB_DATA.msg_detail("返回数据格式错误，期望单条数据，实际返回0条"))
+                    }
                 }
             } else if v2.is_array() {
-                Err(ERR_DB_DATA
-                    .msg_detail("返回数据格式错误，期望单条数据，实际返回多条".to_string()))
+                Err(ERR_DB_DATA.msg_detail("返回数据格式错误，期望单条数据，实际返回多条"))
             } else {
                 Ok(v2)
             }
         }
-        None => {
-            Err(ERR_DB_DATA.msg_detail("返回数据格式错误，期望单条数据，实际返回0条".to_string()))
-        }
+        None => Err(ERR_DB_DATA.msg_detail("返回数据格式错误，期望单条数据，实际返回0条")),
     }
 }
 
@@ -50,27 +50,26 @@ where
 
 pub async fn select_row(sql: String, param: &Value) -> Result<Option<rbs::Value>> {
     let param = &check_param_for_query(param);
-    let sql = render_sql_template(sql.to_string(), param).unwrap();
-    let res = get_db()
-        .await
-        .fetch(sql.0.as_str(), sql.1.map(|x| rbs::Value::from_value(x)))
-        .await;
+    let sql = render_sql_template(sql.to_string(), param)?;
+    let sql_param = sql.1.map_collect(|x| rbs::Value::from_value(x).unwrap());
+    info!("sql_param:{:?}", &sql_param);
+    let res = get_db().await.fetch(sql.0.as_str(), sql_param).await;
     match res {
         std::result::Result::Ok(v) => {
             if v.is_array() {
                 let arr = v.as_array().unwrap();
                 if arr.len() == 1 {
-                    return Ok(Some(arr.get(0).unwrap().clone()));
-                } else if arr.len() == 0 {
-                    return Ok(None);
+                    Ok(Some(arr.get(0).unwrap().clone()))
+                } else if arr.is_empty() {
+                    Ok(None)
                 } else {
-                    return Err(ERR_DB_DATA.msg_detail("返回数据为多条".to_string()));
+                    Err(ERR_DB_DATA.msg_detail("返回数据为多条"))
                 }
             } else {
-                return Err(ERR_DB_DATA.msg_detail("返回数据格式错误".to_string()));
+                Err(ERR_DB_DATA.msg_detail("返回数据格式错误"))
             }
         }
-        Err(e) => return Err(e.into()),
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -85,14 +84,16 @@ where
 
 pub async fn select_all(sql: String, param: &Value) -> Result<Vec<rbs::Value>> {
     let param = &check_param_for_query(param);
-    let sql = render_sql_template(sql.to_string(), param).unwrap();
+    let sql = render_sql_template(sql.to_string(), param)?;
+    let sql_param = sql.1.map_collect(|x| rbs::Value::from_value(x).unwrap());
+    info!("sql_param:{:?}", &sql_param);
     let res = get_db()
         .await
-        .fetch(sql.0.as_str(), sql.1.map(|x| rbs::Value::from_value(x)))
+        .fetch(sql.0.as_str(), sql_param)
         .await
         .map(|x| -> Vec<rbs::Value> {
             if x.is_array() {
-                x.as_array().unwrap().map(|x2| x2.clone())
+                x.as_array().unwrap().map_collect(|x2| x2.clone())
             } else {
                 vec![x]
             }
@@ -107,7 +108,7 @@ where
 {
     select_all(sql, param)
         .await
-        .map(|x| x.map(|x2| rbs::from_value::<T>(x2.clone()).unwrap()))
+        .map(|x| x.map_collect(|x2| rbs::from_value::<T>(x2.clone()).unwrap()))
 }
 
 pub async fn select_page(
@@ -117,16 +118,14 @@ pub async fn select_page(
     limit: u64,
 ) -> Result<PageResult<rbs::Value>> {
     let param = &mut check_param_for_query(param);
-    param.with_object(|map| {
-        map.insert_string("_sql_type", "page_count".to_string());
-    });
-    let count = select_value_to_primitive::<u64>(sql.to_string(), param)
-        .await
-        .unwrap();
+    param
+        .as_object_mut()?
+        .insert_string("_sql_type", "page_count".to_string())?;
+    let count = select_value_to_primitive::<u64>(sql.to_string(), param).await?;
     if count == 0 {
         return Ok(PageResult {
-            page: page,
-            limit: limit,
+            page,
+            limit,
             total: count,
             list: vec![],
         });
@@ -139,17 +138,17 @@ pub async fn select_page(
         }
         sql_new = format!("{} offset {} limit {}", sql, offset.unwrap(), limit);
     };
-    param.with_object(|map| {
-        map.insert_string("_sql_type", "page_list".to_string());
-    });
-    let list = select_all(sql_new.to_string(), param).await.unwrap();
+    param
+        .as_object_mut()?
+        .insert_string("_sql_type", "page_list".to_string())?;
+    let list = select_all(sql_new.to_string(), param).await?;
     println!("list:{:?}", list);
-    return Ok(PageResult {
-        page: page,
-        limit: limit,
+    Ok(PageResult {
+        page,
+        limit,
         total: count,
-        list: list,
-    });
+        list,
+    })
 }
 
 pub async fn select_page_to_entity<T>(
@@ -171,7 +170,7 @@ fn check_param_for_query(param: &Value) -> Value {
         param.clone()
     } else {
         let mut res = BTreeMap::<String, Value>::new();
-        res.insert_value("_root", param.clone());
+        res.insert_value("_root", param.clone()).unwrap();
         Value::Object(res)
     }
 }
@@ -194,10 +193,13 @@ pub async fn execute_returning_value(sql: String, param: &Value) -> Result<rbs::
 
 pub async fn execute(sql: String, param: &Value) -> Result<ExecResult> {
     let param = &check_param_for_query(param);
-    let sql = render_sql_template(sql.to_string(), param).unwrap();
+    let sql = render_sql_template(sql.to_string(), param)?;
     get_db()
         .await
-        .exec(sql.0.as_str(), sql.1.map(|x| rbs::Value::from_value(x)))
+        .exec(
+            sql.0.as_str(),
+            sql.1.map_collect(|x| rbs::Value::from_value(x).unwrap()),
+        )
         .await
         .map_err(|e| e.into())
 }

@@ -69,8 +69,7 @@ impl GlobalScope {
             component_map.insert(name.to_string(), v.into());
             debug!(
                 "设置Component对象:container={},name={}",
-                container_name.clone(),
-                name
+                container_name, name
             );
         }
         component_map.get_mut(name.as_str()).unwrap().as_mut::<V>()
@@ -81,7 +80,7 @@ impl GlobalScope {
     where
         F: FnMut((String, &'static mut Component)) + Send + Sync,
     {
-        let container = Self::get_container(container_name.clone());
+        let container = Self::get_container(container_name);
         let component_map = &mut container.component_map;
         component_map
             .iter_mut()

@@ -5,12 +5,15 @@ use std::{fs::File, io::Read, path::Path};
 
 use knife_macro::knife_component;
 use knife_util::{
-    crates::{serde_json::json, serde_yaml, toml},
-    types::{StringExt, VecExt},
-    value::{ConvertExt, MergeExt, PointerExt, Value},
-    Ok, Result,
+    bean::{AsValueTrait, FromValueTrait, MergeTrait, PointerTrait},
+    crates_builtin::serde_yaml,
+    iter::VecExt,
+    types::StringExt,
+    Ok, Result, Value,
 };
 use tracing::{debug, info, trace};
+
+use crate::value;
 
 use super::setting::Setting;
 
@@ -40,11 +43,11 @@ impl Config {
     }
 
     /// 加载配置模块，并显示加载后数据概要信息
-    pub(crate) async fn launch() -> Result<()> {
+    pub(crate) async fn launch() {
         let config: &mut Config = Config::get_instance();
-        config.load_from_env()?;
-        config.load_from_file()?;
-        config.set_default()?;
+        config.load_from_env().unwrap();
+        config.load_from_file().unwrap();
+        config.set_default().unwrap();
 
         let setting = app_setting();
         debug!("  - project_id: {}", setting.knife.project_id);
@@ -53,30 +56,28 @@ impl Config {
         debug!("  - env_id: {}", setting.knife.env_id);
         debug!("  - env_profiles: {:?}", setting.knife.env_profiles);
         trace!("\n---\n{}\n", serde_yaml::to_string(setting).unwrap());
-        Ok(())
     }
 
     /// 为防止project_id和application_id被配置文件覆盖并进行强制锁定，设置配置空值时的默认参数
     pub fn set_default(&mut self) -> Result<()> {
         let raw_setting = self.raw_setting.as_ref().unwrap();
         let mut origin_data = self.raw_setting.as_ref().unwrap().clone();
-        let new_data = json! ({
+        let new_data = value! ({
             "knife": {
-                "project_id": std::env::var("knife_project_id").unwrap(),
-                "application_id": std::env::var("knife_application_id").unwrap(),
+                "project_id": std::env::var("knife_project_id")?,
+                "application_id": std::env::var("knife_application_id")?,
                 "cluster_id": raw_setting.p("/knife/cluster_id").unwrap().as_str()?.if_blank("default".to_string()),
                 "env_id":  raw_setting.p("/knife/env_id").unwrap().as_str()?.if_blank("default".to_string()),
                 "command": {
-                    "name": std::env::var("knife_command_name").unwrap_or("".to_string())
+                    "name": std::env::var("knife_command_name").unwrap_or_else(|_| "".to_string())
                 }
             }
-        })
-        .as_value();
-        origin_data = origin_data.merge(&new_data).unwrap();
+        });
+        origin_data = origin_data.merge_self(&new_data)?;
         self.raw_setting.replace(origin_data.clone());
 
         let setting =
-            serde_yaml::from_value::<Setting>(serde_yaml::Value::from_value(&origin_data))?;
+            serde_yaml::from_value::<Setting>(serde_yaml::Value::from_value(&origin_data)?)?;
         self.setting.replace(setting);
         Ok(())
     }
@@ -90,19 +91,14 @@ impl Config {
         for path in setting_file {
             if path.ends_with(".yaml") || path.ends_with(".yml") {
                 let str = &mut String::new();
-                File::open(path).unwrap().read_to_string(str)?;
+                File::open(path)?.read_to_string(str)?;
                 let new_data: serde_yaml::Value = serde_yaml::from_str(str)?;
-                origin_data = origin_data.merge(&new_data.as_value())?
-            } else if path.ends_with(".toml") {
-                let str = &mut String::new();
-                File::open(path).unwrap().read_to_string(str)?;
-                let new_data: toml::Value = toml::from_str(str)?;
-                origin_data = origin_data.merge(&new_data.as_value())?;
+                origin_data = origin_data.merge_self(&new_data.as_value()?)?
             }
         }
         for str in self.custom_config.iter() {
             let new_data: serde_yaml::Value = serde_yaml::from_str(str.as_str())?;
-            origin_data = origin_data.merge(&new_data.as_value())?;
+            origin_data = origin_data.merge_self(&new_data.as_value()?)?;
         }
         self.raw_setting.replace(origin_data.clone());
         Ok(())
@@ -115,7 +111,7 @@ impl Config {
             let filename = "./config/".to_string() + &filename;
             let path = Path::new(&filename);
             if path.exists() {
-                let path = path.canonicalize().unwrap().to_str().unwrap().to_string();
+                let path = path.canonicalize()?.to_str().unwrap().to_string();
                 debug!("检测到配置文件:{:?}", path);
                 vec.push(path)
             }
@@ -132,15 +128,15 @@ impl Config {
             .p("/knife/env_profiles")
             .unwrap()
             .as_array()?
-            .map(|x| x.as_str().unwrap().to_string());
-        for suffix in ["yaml", "yml", "toml"] {
+            .map_collect(|x| x.as_str().unwrap().to_string());
+        for suffix in ["yaml", "yml"] {
             vec.push("application.".to_string() + suffix);
         }
-        for suffix in ["yaml", "yml", "toml"] {
+        for suffix in ["yaml", "yml"] {
             vec.push("application-".to_string() + env_id + "." + suffix);
         }
         for profile in env_profiles {
-            for suffix in ["yaml", "yml", "toml"] {
+            for suffix in ["yaml", "yml"] {
                 vec.push("application_profile_".to_string() + profile.as_str() + "." + suffix);
             }
         }
@@ -150,20 +146,19 @@ impl Config {
     /// 从上下文环境中加载应用配置
     pub fn load_from_env(&mut self) -> Result<()> {
         info!("从上下文环境中加载应用配置...");
-        let new_data = json! ({
+        let new_data = value! ({
             "knife": {
                 "project_id": std::env::var("knife_project_id")?,
                 "application_id": std::env::var("knife_application_id")?,
-                "cluster_id": std::env::var("knife_cluster_id").unwrap_or("".to_string()),
-                "env_id": std::env::var("knife_env_id").unwrap_or("".to_string()),
-                "env_profiles": std::env::var("knife_env_profiles").unwrap_or("".to_string()).split(",").collect::<Vec<&str>>(),
+                "cluster_id": std::env::var("knife_cluster_id").unwrap_or_else(|_| "".to_string()),
+                "env_id": std::env::var("knife_env_id").unwrap_or_else(|_| "".to_string()),
+                "env_profiles": std::env::var("knife_env_profiles").unwrap_or_else(|_| "".to_string()).split(',').collect::<Vec<&str>>(),
                 "command": {
-                    "name": std::env::var("knife_command_name").unwrap_or("".to_string())
+                    "name": std::env::var("knife_command_name").unwrap_or_else(|_| "".to_string())
                 }
             }
-        })
-        .as_value();
-        self.raw_setting.replace(new_data.clone());
+        });
+        self.raw_setting.replace(new_data);
         Ok(())
     }
 }
