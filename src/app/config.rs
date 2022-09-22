@@ -7,9 +7,8 @@ use knife_macro::knife_component;
 use knife_util::{
     bean::{AsValueTrait, FromValueTrait, MergeTrait, PointerTrait},
     crates_builtin::serde_yaml,
-    iter::VecExt,
     types::StringExt,
-    Ok, Result, Value,
+    Result, Value, OK,
 };
 use tracing::{debug, info, trace};
 
@@ -79,7 +78,7 @@ impl Config {
         let setting =
             serde_yaml::from_value::<Setting>(serde_yaml::Value::from_value(&origin_data)?)?;
         self.setting.replace(setting);
-        Ok(())
+        OK(())
     }
 
     /// 从配置文件中加载应用配置
@@ -101,7 +100,7 @@ impl Config {
             origin_data = origin_data.merge_self(&new_data.as_value()?)?;
         }
         self.raw_setting.replace(origin_data.clone());
-        Ok(())
+        OK(())
     }
 
     /// 检查配置文件是否存在
@@ -116,7 +115,7 @@ impl Config {
                 vec.push(path)
             }
         }
-        Ok(vec)
+        OK(vec)
     }
 
     /// 拼装所有配置文件名称
@@ -128,7 +127,9 @@ impl Config {
             .p("/knife/env_profiles")
             .unwrap()
             .as_array()?
-            .map_collect(|x| x.as_str().unwrap().to_string());
+            .iter()
+            .map(|x| x.as_str().unwrap().to_string())
+            .collect::<Vec<String>>();
         for suffix in ["yaml", "yml"] {
             vec.push("application.".to_string() + suffix);
         }
@@ -140,7 +141,7 @@ impl Config {
                 vec.push("application_profile_".to_string() + profile.as_str() + "." + suffix);
             }
         }
-        Ok(vec)
+        OK(vec)
     }
 
     /// 从上下文环境中加载应用配置
@@ -159,7 +160,7 @@ impl Config {
             }
         });
         self.raw_setting.replace(new_data);
-        Ok(())
+        OK(())
     }
 }
 

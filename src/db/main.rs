@@ -21,7 +21,8 @@ pub struct Db {
 impl Db {
     /// 数据库模块构造器
     pub(crate) fn new() -> Self {
-        Db { db: Rbatis::new() }
+        let rb = &mut Rbatis::new();
+        Db { db: rb.clone() }
     }
 
     /// 数据库连接初始化
