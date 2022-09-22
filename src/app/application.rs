@@ -9,7 +9,7 @@ use knife_util::{
             sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
         },
     },
-    Result,
+    Result, OK,
 };
 use tracing::debug;
 
@@ -122,7 +122,7 @@ pub async fn launch_application() -> Result<()> {
             }
         }
     });
-    Ok(())
+    OK(())
 }
 
 /// 发送应用消息，并交由应用模块线程进行处理

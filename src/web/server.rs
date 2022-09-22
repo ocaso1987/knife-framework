@@ -10,7 +10,7 @@ use knife_util::{
     },
     error::{AppError, ERR_WEB},
     types::StringExt,
-    Result,
+    Result, OK,
 };
 use tracing::{debug, warn};
 
@@ -76,13 +76,13 @@ async fn match_req(req: Request<Body>) -> Result<Response<Body>> {
         } else {
             let err = resp.err().unwrap();
             warn!("全局异常:{:?}", err);
-            Ok(Response::builder()
+            OK(Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
                 .body(Body::from(err.to_json_string()))
                 .unwrap())
         }
     } else {
-        Ok(Response::builder()
+        OK(Response::builder()
             .status(StatusCode::NOT_FOUND)
             .body(Body::from(
                 ERR_WEB

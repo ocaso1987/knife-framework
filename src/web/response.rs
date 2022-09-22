@@ -7,7 +7,7 @@ use knife_util::{
     crates_builtin::serde_json,
     error::AppError,
     future::AsyncFrom,
-    Result, Value,
+    Result, Value, OK,
 };
 use tracing::info;
 
@@ -70,7 +70,7 @@ impl AsyncFrom<(Result<Value>, String)> for HyperResponse {
 impl From<HyperResponse> for Result<Response<Body>> {
     fn from(v: HyperResponse) -> Self {
         if v.resp.is_some() {
-            Ok(v.resp.unwrap())
+            OK(v.resp.unwrap())
         } else {
             Err(v.err.unwrap())
         }
